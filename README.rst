@@ -13,7 +13,7 @@ instead.
 Example
 =======
 
-Given the following :file:`constraints.txt` file::
+Given the following ``constraints.txt`` file::
 
     werkzeug==0.11.11
     MarkupSafe==0.23
