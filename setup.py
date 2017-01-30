@@ -18,6 +18,8 @@ PACKAGE_NAME = 'pip_compile'
 with open('{}/version.py'.format(PACKAGE_NAME)) as f:
     exec(f.read(), globals())
 
+TEST_REQUIREMENTS = ['pytest']
+
 setup(name=PACKAGE_NAME,
       version=__version__,
       description=('Prototype Pip subcommand for compiling a complete set of '
@@ -44,7 +46,8 @@ setup(name=PACKAGE_NAME,
       license='MIT',
       packages=['pip_compile'],
       entry_points={'console_scripts': ['pip-compile = pip_compile:main']},
+      setup_requires=['pytest-runner'],
       install_requires=['pip'],
-      tests_require=[],
-      extras_require={'testing': [],
+      tests_require=[TEST_REQUIREMENTS],
+      extras_require={'testing': [TEST_REQUIREMENTS],
                       'documentation': []})
