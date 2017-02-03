@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from io import StringIO
 from unittest import TestCase
 
@@ -72,6 +73,31 @@ class PipCompileRequirementSetTestCase(TestCase):
         self.requirement_set.add_requirement(
             InstallRequirement('pkg==1.0', None, constraint=True))
         self.expected = ['pkg from git+ssh://git@server/pkg.git@2.0']
+
+
+@pytest.mark.parametrize('allow_double,expect', [
+    (False, InstallationError),
+    (True, ['pkg==1.0.1 (from parent1)']),
+])
+def test_pip_compile_requirement_set(allow_double, expect):
+    requirement_set = pip_compile.PipCompileRequirementSet(
+        None, None, None, session='dummy', allow_double=allow_double)
+    requirement_set.add_requirement(
+        InstallRequirement('pkg==1.0.1', 'parent1', constraint=False))
+
+    if type(expect) is type:
+        check_exception = pytest.raises(expect)
+    else:
+        def does_not_raise():
+            yield None
+        check_exception = contextmanager(does_not_raise)()
+
+    with check_exception as exc_info:
+        requirement_set.add_requirement(
+            InstallRequirement('pkg==1.0.2', 'parent2', constraint=False))
+    if not exc_info:
+        assert [str(req) for req in requirement_set.requirements.values()] \
+               == ['pkg==1.0.1 (from parent1)']
 
 
 class PrintRequirementsTestCase(TestCase):

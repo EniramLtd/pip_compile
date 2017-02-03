@@ -9,6 +9,22 @@ Basically this does exactly the same thing as ``pip install``, but skips
 actually installing the packages and outputs a list of packages and versions
 instead.
 
+A few extra command line options have been added:
+
+* ``--flat``: Do not recurse into dependencies. This is useful for pinning an
+  explicit list of packages to versions in a constraints file, without resolving
+  any dependencies of packages in the list.
+* ``-o / --output``: Path to write a list of pinned dependencies into. Use ``-``
+  for standard output. The list is in a similar format as what ``pip freeze``
+  outputs.
+* ``-j / --json-output``: Path to write the JSON format dependency graph of
+  pinned packages into.
+* ``--allow-double``: Allow double requirements. This option is only valid
+  together with ``-c / --constraint``. It disregards any version specifiers in
+  given requirements, and allows the same package to be listed multiple times.
+  This is useful when pinning overlapping requirements of multiple packages in
+  one go.
+
 
 Example
 =======
