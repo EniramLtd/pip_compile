@@ -50,4 +50,5 @@ setup(name=PACKAGE_NAME,
       install_requires=['pip'],
       tests_require=[TEST_REQUIREMENTS],
       extras_require={'testing': [TEST_REQUIREMENTS],
-                      'documentation': []})
+                      'documentation': [],
+                      'development': [TEST_REQUIREMENTS]})
