@@ -21,6 +21,16 @@ PIP_MAJOR_VERSION = int(pip.__version__.split('.')[0])
 
 
 class PipCompileRequirementSet(RequirementSet):
+    """A RequirementSet with support for the compile subcommand
+
+    Adds support for allowing double requirements when a constraint file is
+    used.
+
+    """
+    def __init__(self, *args, **kwargs):
+        self._allow_double = kwargs.pop('allow_double', False)
+        super(PipCompileRequirementSet, self).__init__(*args, **kwargs)
+
     def add_requirement(self, install_req, parent_req_name=None,
                         **kwargs):
         """Add install_req as a requirement to install.
@@ -70,9 +80,14 @@ class PipCompileRequirementSet(RequirementSet):
                 existing_req = None
             if (parent_req_name is None and existing_req and not
                     existing_req.constraint):
-                raise InstallationError(
-                    'Double requirement given: %s (already in %s, name=%r)'
-                    % (install_req, existing_req, name))
+                if self._allow_double:
+                    logger.warn('Allowing double requirement: {} (already in '
+                                '{}, name={!r}).'
+                                .format(install_req, existing_req, name))
+                else:
+                    raise InstallationError(
+                        'Double requirement given: %s (already in %s, name=%r)'
+                        % (install_req, existing_req, name))
             if not existing_req:
                 # Add requirement
                 self.requirements[name] = install_req
@@ -215,7 +230,8 @@ class CompileCommand(RequirementCommand):
         cmd_opts.add_option(cmdoptions.no_clean())
         cmd_opts.add_option(cmdoptions.require_hashes())
 
-        # pip_compile adds the --flat and --output command line options:
+        # pip_compile adds the --flat, --output, --json-output and
+        # --allow-double command line options:
         cmd_opts.add_option(
             '--flat',
             action='store_true',
@@ -234,6 +250,11 @@ class CompileCommand(RequirementCommand):
             default=None,
             help='Output a dependency graph of pinned packages as JSON to the '
                  'given path.')
+        cmd_opts.add_option(
+            '--allow-double',
+            action='store_true',
+            default=False,
+            help="Allow double requirements.")
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -244,6 +265,9 @@ class CompileCommand(RequirementCommand):
         self.parser.insert_option_group(0, cmd_opts)
 
     def run(self, options, args):
+        if options.allow_double and not options.constraints:
+            raise Exception('--allow-double can only be used together with -c /'
+                            '--constraint')
         cmdoptions.resolve_wheel_no_use_binary(options)
         cmdoptions.check_install_build_global(options)
 
@@ -304,6 +328,7 @@ class CompileCommand(RequirementCommand):
                     isolated=options.isolated_mode,
                     wheel_cache=wheel_cache,
                     # require_hashes - option not needed?
+                    allow_double=options.allow_double
                 )
 
                 self.populate_requirement_set(

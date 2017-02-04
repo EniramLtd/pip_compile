@@ -1,0 +1,4 @@
+/.cache
+/.eggs
+/pip_compile.egg-info
+__pycache__
