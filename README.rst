@@ -9,6 +9,11 @@ Basically this does exactly the same thing as ``pip install``, but skips
 actually installing the packages and outputs a list of packages and versions
 instead.
 
+Furthermore, when ``-c / --constraint`` is given, the tool checks that all requirements
+are actually specified in the constraint list. This gives the user the confirmation
+that all versions are explicitly specified. One can use constraints without version specifiers
+to accept any version.
+
 A few extra command line options have been added:
 
 * ``--flat``: Do not recurse into dependencies. This is useful for pinning an
@@ -24,6 +29,13 @@ A few extra command line options have been added:
   given requirements, and allows the same package to be listed multiple times.
   This is useful when pinning overlapping requirements of multiple packages in
   one go.
+
+Known caveats and limitations
+=============================
+
+- constraints override requirements. In case the constraint is in conflict with the 
+  requirement (e.g. ``pkg==1.0`` vs ``pkg>=1.1``), the constraint wins. Similarly, 
+  requirement conflicts are ignored with constraint.
 
 
 Example
