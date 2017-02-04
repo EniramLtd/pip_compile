@@ -2,7 +2,7 @@
  pip_compile
 =============
 
-This is a prototype for a Git subcommand which compiles a complete set of
+This is a prototype for a pip subcommand which compiles a complete set of
 depended packages and versions from requirements and constraints.
 
 Basically this does exactly the same thing as ``pip install``, but skips
