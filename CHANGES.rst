@@ -1,4 +1,4 @@
-0.1.1 / 2017-mm-dd
+0.1.1 / 2017-02-08
 ==================
 - Raise an exception if requirement and constraint links don't match for a
   package, or if requirement is ``--editable`` but the constraint isn't.
