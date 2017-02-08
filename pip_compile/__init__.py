@@ -109,6 +109,22 @@ class PipCompileRequirementSet(RequirementSet):
                     # package for installation (i.e. the -r file) instead of a
                     # constraint file.
                     existing_req.comes_from = install_req.comes_from
+                    if install_req.editable and not existing_req.editable:
+                        raise InstallationError(
+                            '--editable / -e {} was a requirement but the '
+                            'constraint "{}" is non-editable. Cannot resolve '
+                            'this conflict.'.format(install_req.name,
+                                                    existing_req))
+                    if ((install_req.link
+                         and install_req.link != existing_req.link)):
+                        raise InstallationError(
+                            'The links for the requirement and the constraint '
+                            'for {} are different:\n'
+                            'Requirement: {}\n'
+                            'Constraint: {}\n'
+                            'Cannot resolve this conflict.'.format(
+                                install_req.link, install_req.link,
+                                existing_req))
                     # And now we need to scan this.
                     result = [existing_req]
                 else:  # both existing_req and install_req are constraints

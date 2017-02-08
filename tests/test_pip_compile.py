@@ -15,20 +15,36 @@ class PipCompileRequirementSetTestCase(TestCase):
         self.requirement_set = pip_compile.PipCompileRequirementSet(
                 None, None, None, session='dummy')
         self.expected = None  # exception expected
+        self.expected_editable = None
 
     def tearDown(self):
+        requirements = self.requirement_set.requirements.values()
         if self.expected is not None:
-            assert [str(req)
-                    for req in self.requirement_set.requirements.values()] \
-                   == self.expected
+            assert [str(req) for req in requirements] == self.expected
+        if self.expected_editable is not None:
+            assert [req.editable
+                    for req in requirements] == self.expected_editable
 
     def test_conflicting_constraint(self):
-        """Currently, constraint 'overrides' requirement"""
+        """Currently, constraint versions override requirement versions"""
         self.requirement_set.add_requirement(
                 InstallRequirement('pkg==1.0.1', None, constraint=True))
         self.requirement_set.add_requirement(
                 InstallRequirement('pkg==1.0.2', None))
         self.expected = ['pkg==1.0.1']
+        self.expected_editable = [False]
+
+    def test_constraint_git_link_override(self):
+        """Constraint links override requirements with no link"""
+        self.requirement_set.add_requirement(
+            InstallRequirement(
+                'pkg', None,
+                link=Link('git+ssh://git@server/pkg.git@1.0'),
+                constraint=True))
+        self.requirement_set.add_requirement(
+            InstallRequirement('pkg==1.0.2', None))
+        self.expected = ['pkg from git+ssh://git@server/pkg.git@1.0']
+        self.expected_editable = [False]
 
     def test_mutually_conflicting_constraints(self):
         """Currently, conflicts ignore versions of actual requirements"""
@@ -62,6 +78,7 @@ class PipCompileRequirementSetTestCase(TestCase):
                 link=Link('git+ssh://git@server/pkg.git@2.0'),
                 constraint=True))
         self.expected = ['pkg from git+ssh://git@server/pkg.git@2.0']
+        self.expected_editable = [False]
 
     def test_version_constraint_ignored_after_link_constraint(self):
         """Currently, constraints with versions ignored after ones with links"""
@@ -73,6 +90,45 @@ class PipCompileRequirementSetTestCase(TestCase):
         self.requirement_set.add_requirement(
             InstallRequirement('pkg==1.0', None, constraint=True))
         self.expected = ['pkg from git+ssh://git@server/pkg.git@2.0']
+        self.expected_editable = [False]
+
+    def test_requirement_link_and_constraint_link_conflict(self):
+        """Currently, requirement/constraint link conflicts are unresolved"""
+        self.requirement_set.add_requirement(
+            InstallRequirement(
+                'pkg', None,
+                link=Link('git+ssh://git@server/pkg.git@1.0'),
+                constraint=True))
+        with pytest.raises(InstallationError):
+            self.requirement_set.add_requirement(
+                InstallRequirement(
+                    'pkg', None,
+                    link=Link('git+ssh://git@server/pkg.git@2.0')))
+
+    def test_editable_requirement_conflict(self):
+        """An non-editable constraint for an editable requirement fails"""
+        self.requirement_set.add_requirement(
+            InstallRequirement(
+                'pkg==1.0.1', None,
+                constraint=True))
+        with pytest.raises(InstallationError):
+            self.requirement_set.add_requirement(
+                InstallRequirement(
+                    'pkg', None,
+                    editable=True))
+
+    def test_editable_constraint(self):
+        """An editable constraint overrides a non-editable requirement"""
+        self.requirement_set.add_requirement(
+            InstallRequirement(
+                'pkg==1.0.1', None,
+                editable=True,
+                constraint=True))
+        self.requirement_set.add_requirement(
+            InstallRequirement(
+                'pkg', None))
+        self.expected = ['pkg==1.0.1']
+        self.expected_editable = [True]
 
 
 @pytest.mark.parametrize('allow_double,constraints,expect', [
