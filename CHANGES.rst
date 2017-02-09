@@ -1,4 +1,4 @@
-0.1.2 / 2017-mm-dd
+0.1.2 / 2017-02-09
 ==================
 - Relaxed the requirement for pinning to a specific version in constraints. If a
   requirement is pinned to a version or downloaded from a link, it doesn't need
