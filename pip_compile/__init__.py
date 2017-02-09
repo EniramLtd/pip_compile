@@ -20,6 +20,19 @@ except ImportError:
 PIP_MAJOR_VERSION = int(pip.__version__.split('.')[0])
 
 
+def is_pinned(install_requirement):
+    if install_requirement.link:
+        # Requirements with a link (tarball path, Git URL) are always considered
+        # as pinned to the specific version at that path.
+        return True
+    else:
+        # Other requirements are considered pinned if their version specifier is
+        # simple equality, e.g. Flask==1.0
+        specifier_operators = {spec.operator
+                               for spec in install_requirement.specifier}
+        return specifier_operators == {'=='}
+
+
 class PipCompileRequirementSet(RequirementSet):
     """A RequirementSet with support for the compile subcommand
 
@@ -360,14 +373,23 @@ class CompileCommand(RequirementCommand):
                             constraint=True, finder=finder, options=options,
                             session=session, wheel_cache=wheel_cache):
                         constraints.add(req.name)
-                missing_constraints = [
-                    req.name for req in requirement_set._to_install()
-                    if req.name not in constraints]
-                if missing_constraints:
-                    raise Exception(
-                        'Package(s) missing from constraints {}:\n{}'
-                        .format(options.constraints,
-                                ', '.join(missing_constraints)))
+                to_install = requirement_set._to_install()
+                non_pinned = [
+                    req for req in to_install
+                    if not is_pinned(req) and req.name not in constraints]
+                if non_pinned:
+                    message = (
+                        "These packages in requirements:\n"
+                        "{}\n"
+                        "aren't pinned to a specific version"
+                        .format('\n'.join('- {}'.format(mc)
+                                          for mc in non_pinned)))
+                    if options.constraints:
+                        message += (
+                            "\nnor in constraints:\n{}"
+                            .format('\n'.join('- {}'.format(c)
+                                              for c in options.constraints)))
+                    raise Exception(message)
 
                 # Conditions for whether to build wheels differ in pip_compile
                 # from original pip:
