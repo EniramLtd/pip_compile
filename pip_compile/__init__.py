@@ -4,6 +4,8 @@ import json
 import os
 import pip
 import sys
+
+import re
 from pip import cmdoptions, logger
 from pip.basecommand import RequirementCommand
 from pip.exceptions import InstallationError
@@ -128,16 +130,15 @@ class PipCompileRequirementSet(RequirementSet):
                             'constraint "{}" is non-editable. Cannot resolve '
                             'this conflict.'.format(install_req.name,
                                                     existing_req))
-                    if ((install_req.link
-                         and install_req.link != existing_req.link)):
-                        raise InstallationError(
-                            'The links for the requirement and the constraint '
-                            'for {} are different:\n'
-                            'Requirement: {}\n'
-                            'Constraint: {}\n'
-                            'Cannot resolve this conflict.'.format(
-                                install_req.link, install_req.link,
-                                existing_req))
+                    if install_req.link:
+                        install_link = re.sub('#.*', '', install_req.link.url)
+                        existing_link = re.sub('#.*', '', existing_req.link.url)
+                        if install_link != existing_link:
+                            raise InstallationError(
+                                'Requirement: {}\n'
+                                'Constraint: {}\n'
+                                'Cannot resolve this conflict.'
+                                .format(install_req, existing_req))
                     # And now we need to scan this.
                     result = [existing_req]
                 else:  # both existing_req and install_req are constraints
