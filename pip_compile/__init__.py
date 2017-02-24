@@ -225,15 +225,16 @@ class CompileCommand(RequirementCommand):
         #     dest='target_dir'
         #     '-d', '--download', '--download-dir', '--download-directory'
         #     dest='download_dir'
-        # cmd_opts.add_option(cmdoptions.download_cache())
 
         cmd_opts.add_option(cmdoptions.src())
 
         # pip_compile omits the following 'pip install' command line options:
         #     '-U', '--upgrade'
+        #     '--upgrade-strategy',
         #     '--force-reinstall'
         #     '-I', '--ignore-installed'
 
+        cmd_opts.add_option(cmdoptions.ignore_requires_python())
         cmd_opts.add_option(cmdoptions.no_deps())
 
         cmd_opts.add_option(cmdoptions.install_options())
@@ -295,14 +296,18 @@ class CompileCommand(RequirementCommand):
         self.parser.insert_option_group(0, cmd_opts)
 
     def run(self, options, args):
+        # pip_compile adds the check for the validity of the --allow-double
+        # command line option:
         if options.allow_double and not options.constraints:
             raise Exception('--allow-double can only be used together with -c /'
                             '--constraint')
+
         cmdoptions.resolve_wheel_no_use_binary(options)
         cmdoptions.check_install_build_global(options)
 
         # Removed handling for the following options which are not included in
         # pip_compile:
+        # options.as_egg
         # options.allow_external
         # options.allow_all_external
         # options.allow_unverified
@@ -347,9 +352,11 @@ class CompileCommand(RequirementCommand):
                     src_dir=options.src_dir,
                     download_dir=None,  # not needed
                     # upgrade - option not needed
+                    # upgrade_strategy - option not needed
                     # as_egg - option not needed
                     ignore_installed=True,  # always ignore installed
                     ignore_dependencies=options.ignore_dependencies,
+                    ignore_requires_python=options.ignore_requires_python,
                     # force_reinstall - option not needed
                     # use_user_site - option not needed
                     # target_dir - option not needed
@@ -358,7 +365,7 @@ class CompileCommand(RequirementCommand):
                     isolated=options.isolated_mode,
                     wheel_cache=wheel_cache,
                     # require_hashes - option not needed?
-                    allow_double=options.allow_double
+                    allow_double=options.allow_double,
                 )
 
                 self.populate_requirement_set(
@@ -387,7 +394,7 @@ class CompileCommand(RequirementCommand):
                                           for mc in non_pinned)))
                     if options.constraints:
                         message += (
-                            "\nnor in constraints:\n{}"
+                            "\nnor appear in constraints:\n{}"
                             .format('\n'.join('- {}'.format(c)
                                               for c in options.constraints)))
                     raise Exception(message)
