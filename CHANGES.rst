@@ -1,3 +1,17 @@
+0.1.5 / 2017-03-14
+==================
+- Packages coming from a local directory are now accepted even if they are not
+  pinned to a specific version in constraints.
+
+0.1.4 / 2017-02-24
+==================
+- Better comparison for installed and constraint packages when they are links to
+  local directories.
+
+0.1.3 / 2017-02-24
+==================
+- Accidental dummy release.
+
 0.1.2 / 2017-02-09
 ==================
 - Relaxed the requirement for pinning to a specific version in constraints. If a
