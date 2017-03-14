@@ -374,23 +374,12 @@ class CompileCommand(RequirementCommand):
                             constraint=True, finder=finder, options=options,
                             session=session, wheel_cache=wheel_cache):
                         constraints.add(req.name)
-                to_install = requirement_set._to_install()
-                non_pinned = [
-                    req for req in to_install
-                    if not is_pinned(req) and req.name not in constraints]
-                if non_pinned:
-                    message = (
-                        "These packages in requirements:\n"
-                        "{}\n"
-                        "aren't pinned to a specific version"
-                        .format('\n'.join('- {}'.format(mc)
-                                          for mc in non_pinned)))
-                    if options.constraints:
-                        message += (
-                            "\nnor in constraints:\n{}"
-                            .format('\n'.join('- {}'.format(c)
-                                              for c in options.constraints)))
-                    raise Exception(message)
+
+                # Additional pip_compile functionality: fail with an error
+                # message if any resolved package is not pinned to an exact
+                # version in constraints, unless it comes from a local directory
+                self.fail_if_any_unpinned_packages(options, finder,
+                                                   requirement_set, constraints)
 
                 # Conditions for whether to build wheels differ in pip_compile
                 # from original pip:
@@ -429,6 +418,72 @@ class CompileCommand(RequirementCommand):
         # pip_compile skips package installation
 
         return requirement_set
+
+    def fail_if_any_unpinned_packages(self,
+                                      options, finder,
+                                      requirement_set, constraints):
+        """Terminate with an error if any packages are not pinned to a version
+
+        Make sure all resolved dependencies are either
+
+        - pinned to a strict version in constraints, or
+        - coming from a local directory ("unnamed requirements")
+
+        """
+        # Hash requirement check copied from
+        # pip.req_set.RequirementSet.prepare_files()
+        require_hashes = (
+            requirement_set.require_hashes or
+            any(req.has_hash_options
+                for req in requirement_set.unnamed_requirements))
+        if require_hashes and self.as_egg:
+            raise InstallationError(
+                '--egg is not allowed with --require-hashes mode, '
+                'since it delegates dependency resolution to '
+                'setuptools and could thus result in installation of '
+                'unhashed packages.')
+
+        # Find out package names for all unnamed requirements, i.e.
+        # those expressed as a directory path. This was copied from
+        # pip.req_set.RequirementSet.prepare_files()
+        for unnamed_requirement in requirement_set.unnamed_requirements:
+            requirement_set._prepare_file(
+                finder,
+                unnamed_requirement,
+                require_hashes=require_hashes,
+                ignore_dependencies=requirement_set.ignore_dependencies)
+
+        # Now the package names have been injected into previously
+        # unnamed requirement objects
+        unnamed_requirement_names = {
+            req.name for req in requirement_set.unnamed_requirements}
+
+        # Find out if any of the resolved packages are not pinned and
+        # are not coming from a local directory ("unnamed requirements")
+        to_install = requirement_set._to_install()
+        non_pinned = [req for req in to_install
+                      if not is_pinned(req)
+                      and req.name not in constraints
+                      and req.name not in unnamed_requirement_names]
+
+        # If any such packages are found, terminate with an error
+        # message. We never want to resolve packages to a version which
+        # wasn't defined in constraints, unless the package comes from a
+        # local directory
+        if non_pinned:
+            message = (
+                "These packages in requirements:\n"
+                "{}\n"
+                "aren't pinned to a specific version"
+                    .format('\n'.join('- {}'.format(mc)
+                                      for mc in non_pinned)))
+            if options.constraints:
+                message += (
+                    "\nnor in constraints:\n{}"
+                        .format('\n'.join('- {}'.format(c)
+                                          for c in
+                                          options.constraints)))
+            raise Exception(message)
 
 
 def print_requirements(requirement_set, output=sys.stdout):
