@@ -35,6 +35,24 @@ def is_pinned(install_requirement):
         return specifier_operators == {'=='}
 
 
+def local_overrides_git(install_req, existing_req):
+    """Check whether we have a local directory and a Git URL
+
+    :param install_req: The requirement to install
+    :type install_req: pip.req.req_install.InstallRequirement
+    :param existing_req: An existing requirement or constraint
+    :type existing_req: pip.req.req_install.InstallRequirement
+    :return: True if the requirement to install is a local directory and the
+             existing requirement is a Git URL
+    :rtype: bool
+
+    """
+    return (install_req.link and
+            existing_req.link and
+            install_req.link.url.startswith('file:///') and
+            existing_req.link.url.startswith('git+'))
+
+
 class PipCompileRequirementSet(RequirementSet):
     """A RequirementSet with support for the compile subcommand
 
@@ -71,6 +89,11 @@ class PipCompileRequirementSet(RequirementSet):
         The signature contains ``**kwargs`` instead of ``extras_requested=``
         since that keyword argument only appeared in 9.0.0 and we still want to
         support pip 8.1.2.
+
+        Requirements are checked against constraints, and mismatches in versions
+        and/or editability raise an error. As an exception to this rule,
+        requirements from local directories override constraints pointing to Git
+        repositories.
 
         """
         name = install_req.name
@@ -125,20 +148,31 @@ class PipCompileRequirementSet(RequirementSet):
                     # constraint file.
                     existing_req.comes_from = install_req.comes_from
                     if install_req.editable and not existing_req.editable:
-                        raise InstallationError(
-                            '--editable / -e {} was a requirement but the '
-                            'constraint "{}" is non-editable. Cannot resolve '
-                            'this conflict.'.format(install_req.name,
-                                                    existing_req))
+                        if local_overrides_git(install_req, existing_req):
+                            logger.warn('Overriding non-editable constraint {} '
+                                        'with editable requirement {}'
+                                        .format(existing_req, install_req))
+                        else:
+                            raise InstallationError(
+                                '--editable / -e {} was a requirement but the '
+                                'constraint "{}" is non-editable. Cannot '
+                                'resolve this conflict.'
+                                .format(install_req.name, existing_req))
                     if install_req.link:
                         install_link = re.sub('#.*', '', install_req.link.url)
                         existing_link = re.sub('#.*', '', existing_req.link.url)
                         if install_link != existing_link:
-                            raise InstallationError(
-                                'Requirement: {}\n'
-                                'Constraint: {}\n'
-                                'Cannot resolve this conflict.'
-                                .format(install_req, existing_req))
+                            if local_overrides_git(install_req, existing_req):
+                                logger.warn(
+                                    'Overriding constraint from Git repository '
+                                    '{} with local directory {} '
+                                    .format(existing_link, install_link))
+                            else:
+                                raise InstallationError(
+                                    'Requirement: {}\n'
+                                    'Constraint: {}\n'
+                                    'Cannot resolve this conflict.'
+                                    .format(install_req, existing_req))
                     # And now we need to scan this.
                     result = [existing_req]
                 else:  # both existing_req and install_req are constraints

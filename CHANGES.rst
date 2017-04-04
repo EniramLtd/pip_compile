@@ -1,3 +1,10 @@
+0.1.6 / 2017-04-04
+==================
+- Local directories are now accepted against constraints which point to Git
+  repositories. This makes it easier to provide a static list of Git
+  repositories as constraints and permit one of them to be installed from a
+  local directory.
+
 0.1.5 / 2017-03-14
 ==================
 - Packages coming from a local directory are now accepted even if they are not
